@@ -1,0 +1,70 @@
+
+---
+title: "Tim Brouwers (Verkopen - Visualiseren 2)"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+In dit notebook ga ik een paar complexere visualisaites bouwen. Deze zijn complexer, omdat ik hierbij bewerkingen, veranderingen en grafieken gebruik wat ik eerder nog niet heb gedaan.
+
+Hierbij begin ik met het inlezen van de libraries en dataset
+
+```{r message=FALSE, warning=FALSE}
+# lees libraries in
+library(dplyr)   # voor allerlei handige functies zoals %>%
+library(ggplot2) # voor tekenen grafieken
+library(readxl)  # voor inlezen dataset
+
+# Data inladen
+dataset <- read_excel("dataset_verkopen.xlsx")
+```
+
+# Hoe veel weken geleden waren de laatste bestellingen in de Aziatische landen?
+Om deze vraag te beantwoorden maak ik een grafiek met alle Aziatische landen naast elkaar en waarin de hoogte van de staven het aantal weken sinds laatste bestelling weergeeft, gesorteerd van hoog naar laag aand de hand van het aantal weken sinds de laatste bestelling.
+
+```{r}
+# Ik maak een nieuw variabel genaamd "data". Hierbij filter ik op het continent Azie.
+data <- dataset %>% filter(Continent=="Azie")
+
+# Vervolgens maak ik een grafiek door middel van ggplot met deze data en sorteer ik op het aantal dagen geleden sinds de laatste bestelling van hoog naar laag.
+# Ten slotte pas ik hierop een geom_bar toe met enkele properties en maak ik gebruik van de labs functie om duidelijke namen aan mij x-as en y-as te geven.
+ggplot(data, mapping = aes(x = reorder(Land, -Dagen_geleden_laatste_bestelling), Dagen_geleden_laatste_bestelling / 7)) +   
+  geom_bar(aes(fill = Land), position = "dodge", stat="identity") +
+  labs(x="Land", y="Weken", title="Tijd sinds de laaste bestelling in Aziatische landen")
+```
+
+Uit deze grafiek valt te concluderen dat Japan het land is waarbij er het langst geen bestelling meer is geplaatst, vervolgens komt China en ten slotte Taiwan, hier is het korst geleden een bestelling geplaatst.
+
+# Wat is de spreiding van het aantal bestellingen per continent en geslacht?
+Om deze vraag te beantwoorden ga ik puntendiagram per continent en geslacht maken. Hierdoor kun je eenvoudig zien welk geslacht er per continent de meeste bestellingen plaatst.
+
+```{r}
+# Ik maak een nieuw variabel genaamd data waarbij ik groepeer op Geslacht en Continent. Vervolgens maak ik een summary van het aantal bestelde artikelen per geslacht en continent.
+data <- dataset %>% group_by(Geslacht, Continent) %>% summarise(total_ordered = sum(Aantal_besteld)) 
+
+# Ten slotte maak ik een ggplot met het Continent op de x-as en het aantal bestelde artikelen op de y-as
+ggplot(data, aes(Continent, total_ordered)) +
+  geom_point(aes(colour = Geslacht)) +
+  labs(x="Continent", y="Bestellingen", title="Spreiding aantal bestellingen per continent en geslacht")
+```
+
+Qua aantal bestellingen doen de mannen in Europa het het beste, maar (wat niet uit deze grafiek is af te lezen) ze zijn dan ook met z'n tweeen. Net als de mannen in Noord-Amerika trouwens, die het dan weer wat minder goed doen qua aantal bestellingen. De vrouwen in Europa verliest ruim de ongelijke strijd met twee vrouwen uit Azie waarvan er eentje zowel iPads als IPhones verkoopt.
+
+Wat nog meer is op te merken is dat Scandinavië geen continent is, maar hier wel in de dataset zit. Deze dataset is dus incorrect.
+
+# Hoe staat het met de opbrengst in verhouding tot de klanttevredenheid bij de verkopers in de verschillende continenten?
+Om deze vraag te beantwoorden maak ik per continent een diagram met de opbrengst afgezet tegen de klanttevredenheid.
+
+```{r}
+# Ik maak een ggplot met de Opbrnegst op de x-as en de Klanttevredenheid op de y-as
+ggplot(dataset, aes(Opbrengst, Klanttevredenheid)) +
+  geom_point(aes(colour = Naam)) + 
+  facet_wrap(~Continent) + # Voor het maken van een plot per continent 
+  labs(x="Opbrengst", y="Bestellingen")
+```
+
+Zo op het oog lijkt er geen duidelijke relatie te zijn tussen opbrengst en klanttevredenheid. Je zou wel verwachten dat er meer opbrengst is op plekken waar de klanttevredenheid hoogd is (mond-op-mond reclame). Misschien wordt het tijd voor betere marketing.
+
+
