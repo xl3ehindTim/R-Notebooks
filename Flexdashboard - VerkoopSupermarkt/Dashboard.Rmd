@@ -1,0 +1,76 @@
+---
+title: "Dashboard"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(readxl)
+library(tidyverse)
+library(highcharter)
+```
+
+```{r}
+sales <- read_excel("./Datasets/sales.xlsx")
+
+# Add thousand seperator
+hcoptslang <- getOption("highcharter.lang")
+hcoptslang$thousandsSep <- "."
+hcoptslang$decimalPoint <- ","
+options(highcharter.lang = hcoptslang)
+```
+
+Sales
+=======================================================================
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+###
+
+```{r}
+# Create new variable with query
+revenue_by_city <- sales %>% # Use sales data
+  group_by(woonplaats) %>% # Group by city
+  summarise(revenue=sum(regelOmzet)) %>% # Calculate revenue with 9% BTW (Food)
+  arrange(desc(revenue)) # Sort from high to low based on revenue
+
+# Create highchart column plot using revenue per city
+hchart(revenue_by_city, "column", hcaes(x = woonplaats, y = revenue), color="green", name="Omzet") |>
+  hc_title(text = "Omzet per woonplaats") |>
+  hc_add_theme(hc_theme_google()) |> # Set theme to google theme
+  hc_yAxis(title = list(text = "Omzet (Excl. btw)")) |> # Set y-axis label
+  hc_xAxis(title = list(text = "Woonplaats")) # Set x-axis label
+```
+
+###
+```{r}
+revenue_by_month <- sales %>%
+  mutate(Datum = format(besteldatum, "%Y-%m")) %>% # Format date to year-month
+  group_by(Datum) %>%  # Group by date
+  summarise(Omzet = sum(regelOmzet)) # Sum totaal
+
+    hchart(revenue_by_month, "line", hcaes(x = Datum, y = Omzet), name="Omzet") |>
+      hc_title(text = "Omzet per maand") |>
+      hc_yAxis(title = list(text = "Omzet (In euros)")) |>
+      hc_xAxis(title = list(text = "Datum")) |>
+      hc_add_theme(hc_theme_google())
+```
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+###
+
+```{r}
+# Create new variable with query
+revenue_by_product <- sales %>% # Use sales data
+  group_by(omschrijving) %>% # Group by city
+  summarise(revenue=sum(regelOmzet)) # Calculate revenue with 9% BTW (Food)
+
+hchart(revenue_by_product, "treemap", hcaes(x = omschrijving, value = revenue, color=revenue)) |>
+  hc_title(text = "Omzet per artikel")
+```
