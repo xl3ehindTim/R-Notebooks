@@ -1,0 +1,97 @@
+---
+title: "Strava dataset Challenges"
+author: "Tim Brouwers"
+date: "2022-12-19"
+output: html_document
+---
+
+In dit notebook ga ik de strava dataset challenge uitwerken. Hierbij ga ik de aangeboden ritten dataset analyseren en visualiseren.
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(lubridate)
+```
+
+```{r load dataset}
+data <- read.csv("./data/strava.csv", sep = ";") # Convert CSV data to dataframe in R. Use ; as the seperator
+```
+
+###	Kun je een verband vinden tussen de maand en de starttijd van een rit?
+Om dit te kunnen analyseren ga ik gebruik maken van enkele lubridate functies om de maand en uur los te trekken uit het "start_date" variabel. Vervolgens kan ik groeperen op de maand en de gemiddelde starttijd bepalen door middel van een summary. Ten slotte sorteer ik op de maand.
+
+```{r verband tussen maand en starttijd van een rit }
+time <- data %>%
+  mutate(
+    date = as.Date(start_date),
+    hour = hour(start_date),
+  ) %>%
+  group_by(Month = format(date, "%m")) %>%
+  summarise(average_starting_hour = mean(hour)) %>%
+  mutate(MonthName=month.abb[as.factor(Month)]) %>%
+  arrange(Month)
+
+time
+
+ggplot(time, aes(x = reorder(MonthName, as.numeric(Month)), y=average_starting_hour, group=1)) +
+  geom_line() +
+  labs(x="Maand", y="Gemiddelde starttijd (uur)", title="Starttijd op maand")
+```
+
+Wat mij opvalt uit deze gegevens is dat in het begin van het jaar de gemiddelde starttijd om 2 uur (14) is. Dit bouwt zich vervolgens naar beneden tot 10 uur in juli. Vervolgens gaat het weer omhoog, ik vermoedt dat dit te maken heeft met de klokverzettingen in het jaar.
+
+### Hoeveel verschillende fietsen zijn er gebruikt?
+Om antwoord te kunnen geven op deze vraag ga ik een functie genaamd "distinct" toepassen. Door deze functie op het "gear_id" veld toe te passen krijg ik alle unieke fietsen te zien.
+
+Vervolgens pas ik een summarise toe met "n()". Deze functie geeft het aantal rijen terug. Zo kan ik eenvoudig tot het gewenste eindresultaat komen. 
+
+```{r unique bicycles}
+uniqueBicycles <- data %>% 
+  filter(type == "Ride" || type == "VirtualRide") %>% # Filter on type is Ride or VirtualRide. This is not necessary at the moment since other activities don't have a gear_id
+  distinct(gear_id) %>% # Get all unique gear_id's
+  summarise(amount=n()) # Get amount of rows left by unique gear id
+
+# Show amount of unique bicycles
+uniqueBicycles
+```
+
+Uit deze query blijkt dat er in de dataset 11 verschillende fietsen zijn gebruikt.
+
+
+### Met welke fiets wordt het snelste gefietst?
+Om deze vraag te beantwoorden ga ik berekenen wat de gemiddelde snelheid van de fietsen zijn. Hierbij groepeer ik op "gear_id". Vervolgens maak ik een summary waarbij ik de totale afgelegde afstand deel door de totale beweegtijd van deze fiets. Daarna sorteer ik van hoog naar laag op basis van deze gemiddelde snelheid. Ten slotte maak ik gebruik van ggplot om een inzichtelijke grafiek te maken om deze gegevens uit te lezen. Dit geeft het volgende resultaat:
+
+```{r calculate bicycle speed}
+speed <- data %>%
+  filter(!is.na(gear_id)) %>% # Remove rows with NA gear_id (non bicycle)
+  group_by(gear_id) %>%   # Group on gear_id
+  summarise(average_speed=sum(distance) / sum(moving_time)) %>% # Calculate average speed by using sum distance / sum moving time
+  arrange(desc(average_speed)) # Arrange from high to low
+
+ggplot(speed, aes(x=gear_id, y=average_speed)) +
+  geom_col() +
+  labs(x="Fiets ID", y="Gemiddelde snelheid (km/u)", title="Snelheid per fiets") +
+  geom_text(aes(label = round(average_speed, digits=2)), vjust = -0.2)
+```
+
+Uit deze grafiek blijkt dat de fiets met het gear_id "b2266483" de snelste gemiddelde snelheid heeft met wel 57 km/u. 
+
+### Worden de ritten langer als de dagen langer worden?
+
+```{r verband tussen rittijd en de dagen}
+time <- data %>%
+  mutate(
+    date = as.Date(start_date),
+    hour = hour(start_date),
+  ) %>%
+  group_by(Month = format(date, "%m")) %>%
+  summarise(average_moving_time = mean(moving_time)) %>%
+  mutate(MonthName=month.abb[as.factor(Month)]) %>%
+  arrange(Month)
+
+time
+
+ggplot(time, aes(x = reorder(MonthName, as.numeric(Month)), y=average_moving_time, group=1)) +
+  geom_line()
+```
