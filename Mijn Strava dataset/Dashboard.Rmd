@@ -1,0 +1,59 @@
+---
+title: "Strava dataset"
+author: "Tim Brouwers"
+date: "2022-12-22"
+output: html_document
+---
+
+In dit notebook ga ik mijn eigen strava dataset analyseren en visualisereren.
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(lubridate)
+library(readxl)
+```
+
+```{r load dataset}
+data <- read_excel("./data/strava.xlsx") # Convert Excel sheet to dataframe
+```
+
+### Op welke dag ren ik meestal?
+
+Om hier inzicht in te krijgen ga ik groeperen op de start dag van de runs. Vervolgens pas ik een summarise functie toe op het aantal afgelegde meters en aantal rijen en zet ik dit om naar kilometers. Ten slotte visualiseer ik dit in een overzichtelijke grafiek.
+
+```{r}
+kilometers_by_day <- data %>% group_by(start_day) %>% summarise(count=n(), kilometers=sum(as.numeric(distance_raw)) / 1000)
+
+ggplot(kilometers_by_day, aes(x=start_day, y=count, fill=kilometers)) +
+  geom_col() +
+  scale_fill_gradient(low = "yellow", high = "red") + 
+  labs(x="Dag", y="Aantal runs", title="Op welke dag ren ik meestal?", fill="Totale kilometers") +
+  coord_flip()
+```
+
+Wat opvallend is, is dat de meest afgelegde kilometers op zondag zijn. Dit komt overeen met mijn trainingsschema, vaak train ik op zondag op langere afstand terwijl ik door de weeks kortere afstanden afleg.
+
+### Rond welke tijd van de dag ren ik meestal?
+
+Om antwoord te kunnen geven op deze vraag ga ik beginnen met de start_date_local_raw om te zetten naar een datetime object. Vervolgens kan ik met lubridate het uur uit dit object halen.
+
+Daarna ga ik mijn data prepareren. Ik begin met te groeperen op het uur en pas vervolgens een summary toe met het aantal rows (n()) en het aantal kilometers, dit is distance_raw / 1000 omdat dat variabel in meters is. Vervolgens maak ik hier een visualisatie van. 
+
+```{r}
+data <- data %>% mutate(start_date_local=as_datetime(start_date_local_raw)) %>% mutate(hour = hour(start_date_local)) # Muteer start_date_local_raw naar datetime, zodat ik de hour functie kan toepassen om hierop een summary te maken.
+
+grouped_data <- data %>%
+  group_by(hour) %>% # Groepeer op uur
+  summarise(count = n(), kilometers = sum(distance_raw) / 1000) # Maak een summary van het aantal rijen n() en aantal kilometers = sum(distance_raw) / 1000
+
+ggplot(grouped_data, aes(x=hour, y=count, fill=kilometers)) + 
+  geom_col() +
+  scale_fill_gradient(low ="yellow", high="red") + 
+  labs(title="Welke tijd van de dag ren ik meestal?", x="Tijd van de dag", y="Aantal runs", fill="Totale kilometers")
+```
+
+Uit deze visualisatie blijkt dat ik het vaakst ren rond 7 uur. Dit is te zien uit de staaf die bij die tijdsperiode behoord, ook heb ik daar het meeste aantal runs en kilometers gelopen.
+
+Ook is te zien dat ik voor 8 uur in de ochtend en na 9 uur in de avond niet meer ren. 

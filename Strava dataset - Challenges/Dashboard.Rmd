@@ -79,6 +79,8 @@ Uit deze grafiek blijkt dat de fiets met het gear_id "b2266483" de snelste gemid
 
 ### Worden de ritten langer als de dagen langer worden?
 
+Voor het beantwoorden van deze vraag ga ik de gemiddelde afstand per maand visualiseren. Dit doe ik door te groeperen op de maand en vervolgens een summary te maken op basis van de gemiddelde ritafstand.
+
 ```{r verband tussen rittijd en de dagen}
 time <- data %>%
   mutate(
@@ -86,12 +88,13 @@ time <- data %>%
     hour = hour(start_date),
   ) %>%
   group_by(Month = format(date, "%m")) %>%
-  summarise(average_moving_time = mean(moving_time)) %>%
+  summarise(average_distance = mean(distance) / 1000) %>%
   mutate(MonthName=month.abb[as.factor(Month)]) %>%
   arrange(Month)
 
-time
-
-ggplot(time, aes(x = reorder(MonthName, as.numeric(Month)), y=average_moving_time, group=1)) +
-  geom_line()
+ggplot(time, aes(x = reorder(MonthName, as.numeric(Month)), y=average_distance, group=1)) +
+  geom_line() +
+  labs(x="Maand", y="Gemiddelde ritafstand (km)")
 ```
+
+De afstand van de ritten worden langer des te langer de dagen duren. Dit kun je goed terugzien door te kijken naar februari en maart. In deze twee maanden stijgt de gemiddelde afstand flink, wat overeen komt met de stijging. Ook is te zien dat vanaf juli de afstand weer omlaag gaat.
