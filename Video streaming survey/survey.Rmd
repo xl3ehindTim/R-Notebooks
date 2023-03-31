@@ -1,0 +1,337 @@
+---
+title: "Survey results"
+output: html_notebook
+---
+
+
+```{r libraries}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(highcharter)
+library(ggthemes)
+library(plotly)
+```
+
+```{r setup}
+# Add thousand seperator
+hcoptslang <- getOption("highcharter.lang")
+hcoptslang$thousandsSep <- "."
+options(highcharter.lang = hcoptslang)
+
+raw_results <- read.csv(file = 'Datasets/survey.csv')
+```
+
+# Amount of users per video streaming service grouped on age
+```{r}
+groups <- c("Under 18 years old", "18-24", "25-34", "35-44", "45-54", "55-64", "65 years old or above")
+
+# Create individual rows based on column
+df <- separate_rows(raw_results, What.video.streaming.services.do.you.currently.use., convert = TRUE, sep=";")
+
+# Remove left/right whitespace
+df$What.video.streaming.services.do.you.currently.use. <- trimws(df$What.video.streaming.services.do.you.currently.use., which = c("both"))
+
+# Get services that have more than 1 vote
+popular_services <- df %>%
+    group_by(What.video.streaming.services.do.you.currently.use.) %>%
+    summarise(n=n()) %>%
+    filter(n > 1)
+
+# Group on video streaming services and summarise n amount
+df <- df %>% 
+  group_by(What.is.your.age., What.video.streaming.services.do.you.currently.use.) %>% 
+  summarise(amount=n()) %>%
+  filter(What.video.streaming.services.do.you.currently.use. != "") %>%
+  filter(What.video.streaming.services.do.you.currently.use. %in% popular_services$What.video.streaming.services.do.you.currently.use.)
+
+plot <- ggplot(df, aes(x = fct_relevel(What.is.your.age., groups), y = What.video.streaming.services.do.you.currently.use., fill = amount)) + 
+  geom_tile() +
+  geom_text(aes(label = round(amount, 1))) +
+  scale_fill_gradient(low = "white", high = "red") +
+  labs(title = "Usage of Video Streaming Services by age", x = "Age groups", y = "Video streaming services", fill="Amount of users") +
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10))
+
+ggplotly(plot)
+```
+
+# Proportion of Respondents Who Subscribed to a Video Streaming Service for Specific Content grouped
+
+```{r}
+# Create individual rows based on column
+data <- separate_rows(raw_results, What.video.streaming.services.do.you.currently.use., convert = TRUE, sep=";")
+
+# Remove left/right whitespace
+data$What.video.streaming.services.do.you.currently.use. <- trimws(data$What.video.streaming.services.do.you.currently.use., which = c("both"))
+
+# Group on video streaming services and summarise n amount
+data <- data %>% 
+  group_by(Have.you.ever.subscribed.to.a.video.streaming.service.solely.to.watch.a.specific.show.or.movie., What.video.streaming.services.do.you.currently.use.) %>% 
+  summarise(amount=n()) %>%
+  arrange(desc(amount)) %>%
+  filter(amount > 1) %>%
+  filter(What.video.streaming.services.do.you.currently.use. != "")
+
+hchart(
+  data,
+  "column",
+  hcaes(x= reorder(What.video.streaming.services.do.you.currently.use., amount), y=amount, group=Have.you.ever.subscribed.to.a.video.streaming.service.solely.to.watch.a.specific.show.or.movie.)
+) |>
+  hc_title(text = "Respondents who subscribed to a video streaming service for specific content by video streaming service") |>
+  hc_yAxis(title = list(text = "Amount")) |>
+  hc_xAxis(title = list(text = "")) |>
+  hc_add_theme(hc_theme_google()) |>
+  hc_plotOptions(series = list(
+  borderWidth= 0,
+  dataLabels = list(
+    enabled = TRUE,
+    color = "black"
+  )))
+```
+
+```{r}
+# Create individual rows based on column
+data <- raw_results # separate_rows(raw_results, What.video.streaming.services.do.you.currently.use., convert = TRUE, sep=";")
+
+# Group on video streaming services and summarise n amount
+data <- data %>% 
+  group_by(Have.you.ever.subscribed.to.a.video.streaming.service.solely.to.watch.a.specific.show.or.movie., What.is.your.age.) %>% 
+  summarise(amount=n()) %>%
+  arrange(desc(amount)) %>%
+  filter(amount > 1)
+
+hchart(
+  data,
+  "column",
+  hcaes(x= reorder(What.is.your.age., amount), y=amount, group=Have.you.ever.subscribed.to.a.video.streaming.service.solely.to.watch.a.specific.show.or.movie.)
+) |>
+  hc_title(text = "Respondents who subscribed to a video streaming service for specific content by age") |>
+  hc_yAxis(title = list(text = "Amount")) |>
+  hc_xAxis(title = list(text = "")) |>
+  hc_add_theme(hc_theme_google()) |>
+  hc_plotOptions(series = list(
+  borderWidth= 0,
+  dataLabels = list(
+    enabled = TRUE,
+    color = "black"
+  )))
+```
+
+# Factors Considered Most Important When Choosing a Video Streaming Service
+
+```{r}
+df <- raw_results %>% 
+  pivot_longer(cols = names(raw_results)[4:8],
+                    values_to = "value") %>%
+  select(What.is.your.age., name, value)
+
+ggplot(df, aes(x=name, y=value)) + 
+  geom_boxplot(fill="slateblue", alpha=0.2) + 
+  labs(title = "Factors Considered Most Important When Choosing a Video Streaming Service", x = "Factors", y = "Importance (ranked from 1 to 5)") +
+  scale_x_discrete(labels = c('Availability on \n multiple devices', 'Content selection', 'Layout and \n easy of use', 'Price', 'Video quality'))
+  # + facet_wrap(vars(What.is.your.age.))
+```
+
+
+
+
+
+# Reasons for Cancelling Video Streaming Service Subscriptions
+
+```{r}
+# Create individual rows based on column
+data <- separate_rows(raw_results, Have.you.ever.canceled.a.video.streaming.service.subscription..If.so..why., convert = TRUE, sep=";")
+
+# Remove left/right whitespace
+data$Have.you.ever.canceled.a.video.streaming.service.subscription..If.so..why. <- trimws(data$Have.you.ever.canceled.a.video.streaming.service.subscription..If.so..why., which = c("both"))
+
+# Group on video streaming services and summarise n amount
+data <- data %>% 
+  group_by(What.is.your.age., Have.you.ever.canceled.a.video.streaming.service.subscription..If.so..why.) %>% 
+  summarise(amount=n()) %>%
+  arrange(desc(amount)) %>%
+  filter(Have.you.ever.canceled.a.video.streaming.service.subscription..If.so..why. != "")
+
+hchart(
+  data,
+  "column",
+  hcaes(x = Have.you.ever.canceled.a.video.streaming.service.subscription..If.so..why., y = amount, group = What.is.your.age.)
+) |>
+  hc_title(text = "Reasons for Cancelling Video Streaming Service Subscriptions") |>
+  hc_yAxis(title = list(text = "Amount")) |>
+  hc_xAxis(title = list(text = "")) |>
+  hc_add_theme(hc_theme_google()) |>
+  hc_plotOptions(series = list(
+  borderWidth= 0,
+  dataLabels = list(
+    enabled = TRUE,
+    color = "black"
+  )))
+```
+
+```{r}
+# Create individual rows based on column
+df <- separate_rows(raw_results, What.video.streaming.services.do.you.currently.use., convert = TRUE, sep=";")
+
+# Remove left/right whitespace
+df$What.video.streaming.services.do.you.currently.use. <- trimws(df$What.video.streaming.services.do.you.currently.use., which = c("both"))
+
+# Get services that have more than 1 vote
+popular_services <- df %>%
+    group_by(What.video.streaming.services.do.you.currently.use.) %>%
+    summarise(n=n()) %>%
+    filter(n > 1)
+
+# Group on video streaming services and summarise n amount
+df <- df %>% 
+  group_by(How.satisfied.are.you.with.the.overall.value.of.the.video.streaming.services.you.currently.use., What.video.streaming.services.do.you.currently.use.) %>% 
+  summarise(amount=n()) %>%
+  filter(What.video.streaming.services.do.you.currently.use. != "") %>%
+  filter(What.video.streaming.services.do.you.currently.use. %in% popular_services$What.video.streaming.services.do.you.currently.use.)
+
+hchart(
+  df,
+  "column",
+  hcaes(
+    x = What.video.streaming.services.do.you.currently.use., 
+    y = amount,
+    group=How.satisfied.are.you.with.the.overall.value.of.the.video.streaming.services.you.currently.use.
+  )
+) |>
+  hc_title(text = "Satisfaction ratings by Video Streaming Services") |>
+  hc_yAxis(title = list(text = "Rating %")) |>
+  hc_xAxis(title = list(text = "")) |>
+  hc_add_theme(hc_theme_google()) |>
+  hc_plotOptions(
+    column = list(stacking = "percent"),
+    series = list(
+      borderWidth= 0,
+      dataLabels = list(
+        enabled = FALSE, # Note set this to TRUE to see numbers
+        color = "white"
+  )))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Video streaming services by age  
+Create a bar chart to show the percentage of respondents who use each video streaming service. Perform cross-tabulations to see how the usage of different services varies across different age groups
+
+# Stacked bar chart met (have you ever subscribed to a video streaming service solely to....) per video streaming service (Original content)
+# Gemiddelde tevredenheid met huidige streaming services 
+# Gemiddelde leeftijd met streaming services (Door middel van mean or ordinal values)
+
+
+# Amount of respondents by age group
+
+```{r}
+data <- raw_results %>% 
+  group_by(What.is.your.age.) %>% 
+  summarise(amount=n())
+
+groups <- c("Under 18 years old", "18-24", "25-34", "35-44", "45-54", "55-64", "65 years old or above")
+
+data <- data %>%
+  slice(match(groups, What.is.your.age.))
+  
+hchart(
+  data,
+  "column",
+  hcaes(x = What.is.your.age., y = amount),
+  name = "Amount of respondents by age group",
+  groupPadding = 0
+) |>
+  hc_title(text = "Amount of respondents by age group") |>
+  hc_yAxis(title = list(text = "Total respondents")) |>
+  hc_xAxis(title = list(text = "Age groups")) |>
+  hc_add_theme(hc_theme_google()) |>
+  hc_plotOptions(series = list(
+  borderWidth= 0,
+  dataLabels = list(
+    enabled = TRUE,
+    color = "black"
+  )))
+```
+
+# Streaming services
+
+```{r}
+# Create individual rows based on column
+data <- separate_rows(raw_results, What.video.streaming.services.do.you.currently.use., convert = TRUE, sep=";")
+
+# Remove left/right whitespace
+data$What.video.streaming.services.do.you.currently.use. <- trimws(data$What.video.streaming.services.do.you.currently.use., which = c("both"))
+
+# Group on video streaming services and summarise n amount
+data <- data %>% 
+  group_by(What.video.streaming.services.do.you.currently.use.) %>% 
+  summarise(amount=n()) %>%
+  arrange(desc(amount)) %>%
+  filter(amount > 1) %>%
+  filter(What.video.streaming.services.do.you.currently.use. != "")
+
+hchart(
+  data,
+  "column",
+  hcaes(x = What.video.streaming.services.do.you.currently.use., y = amount),
+  name = "",
+  groupPadding = 0
+) |>
+  hc_title(text = "") |>
+  hc_yAxis(title = list(text = "")) |>
+  hc_xAxis(title = list(text = "")) |>
+  hc_add_theme(hc_theme_google()) |>
+  hc_plotOptions(series = list(
+  borderWidth= 0,
+  dataLabels = list(
+    enabled = TRUE,
+    color = "black"
+  )))
+```
+
+# Are you interested in subscribing to a video streaming service that offers a pay per view pricing for individual movies and TV shows rather than a monthly subscription fee?
+
+```{r}
+data <- raw_results %>% group_by(Are.you.interested.in.subscribing.to.a.video.streaming.service.that.offers.a.pay.per.view.pricing.for.individual.movies.and.TV.shows..rather.than.a.monthly.subscription.fee.) %>% summarise(amount=n())
+
+hchart(
+  data,
+  "column",
+  hcaes(x = Are.you.interested.in.subscribing.to.a.video.streaming.service.that.offers.a.pay.per.view.pricing.for.individual.movies.and.TV.shows..rather.than.a.monthly.subscription.fee., y=amount),
+  name = "Amount of respondents",
+  groupPadding = 0
+) |>
+  #hc_title(text = "") |>
+  hc_yAxis(title = list(text = "Total respondents")) |>
+  hc_xAxis(title = list(text = "")) |>
+  hc_add_theme(hc_theme_google()) |>
+  hc_plotOptions(series = list(
+  borderWidth= 0,
+  dataLabels = list(
+    enabled = TRUE,
+    color = "black"
+  )))
+```
